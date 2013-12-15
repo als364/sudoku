@@ -14,14 +14,15 @@ namespace Sudoku
 
             string filename = @"../../sudokus/01.txt";
             grid.ReadValuesFromFile(filename);
+            Debug.WriteLine(grid);
 
             TheoreticalGrid theoreticalGrid = new TheoreticalGrid(grid);
-
-            Debug.WriteLine(theoreticalGrid);
 
             theoreticalGrid.AC3();
 
             Debug.WriteLine(theoreticalGrid);
+
+            Debug.WriteLine(theoreticalGrid.Valid());
         }
     }
 }
