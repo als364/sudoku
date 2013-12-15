@@ -11,11 +11,17 @@ namespace Sudoku
         public static void Main()
         {
             Grid grid = new Grid(3);
-            TheoreticalGrid theoreticalGrid = new TheoreticalGrid(grid);
 
             string filename = @"../../sudokus/01.txt";
             grid.ReadValuesFromFile(filename);
-            Debug.WriteLine(grid.Valid());
+
+            TheoreticalGrid theoreticalGrid = new TheoreticalGrid(grid);
+
+            Debug.WriteLine(theoreticalGrid);
+
+            theoreticalGrid.AC3();
+
+            Debug.WriteLine(theoreticalGrid);
         }
     }
 }

@@ -7,14 +7,14 @@ namespace Sudoku
 {
     class TheoreticalGrid
     {
-        private bool[,,] grid;
+        private bool[, ,] grid;
         private int gridsize;
 
         public TheoreticalGrid(int gridsize)
         {
             this.gridsize = gridsize;
             grid = new bool[gridsize * gridsize, gridsize * gridsize, gridsize * gridsize];
-            for(int i = 0; i < grid.GetLength(0); i++)
+            for (int i = 0; i < grid.GetLength(0); i++)
             {
                 for (int j = 0; j < grid.GetLength(1); j++)
                 {
@@ -28,6 +28,7 @@ namespace Sudoku
 
         public TheoreticalGrid(Grid givenGrid)
         {
+            gridsize = givenGrid.Gridsize;
             grid = new bool[givenGrid.Gridsize * givenGrid.Gridsize, givenGrid.Gridsize * givenGrid.Gridsize, givenGrid.Gridsize * givenGrid.Gridsize];
             for (int i = 0; i < grid.GetLength(0); i++)
             {
@@ -111,28 +112,83 @@ namespace Sudoku
             return peers;
         }
 
-        public void AC3()
+        public bool AC3()
         {
+            Queue<Arc> worklist = new Queue<Arc>();
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {
+                for (int y = 0; y < grid.GetLength(1); y++)
+                {
+                    Point currentPoint = new Point(x, y);
+                    List<Point> peers = GetPeers(currentPoint);
+                    foreach (Point peer in peers)
+                    {
+                        worklist.Enqueue(new Arc(currentPoint, peer));
+                    }
+                }
+            }
+
+            while (worklist.Count > 0)
+            {
+                Arc currentArc = worklist.Dequeue();
+                if (ArcReduce(currentArc))
+                {
+                    bool hasValues = false;
+                    for (int i = 0; i < grid.GetLength(2); i++)
+                    {
+                        if (grid[currentArc.P1.X, currentArc.P2.X, i])
+                        {
+                            hasValues = true;
+                        }
+                        if (!hasValues)
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            for (int x = 0; x < grid.GetLength(0); x++)
+                            {
+                                for (int y = 0; y < grid.GetLength(1); y++)
+                                {
+                                    Point currentPoint = new Point(x, y);
+                                    List<Point> peers = GetPeers(currentPoint);
+                                    foreach (Point peer in peers)
+                                    {
+                                        if (peer != currentArc.P2)
+                                        {
+                                            worklist.Enqueue(new Arc(peer, currentPoint));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
         }
 
-        public bool ArcReduce(Point p1, Point p2)
+        public bool ArcReduce(Arc arc)
         {
             bool change = false;
-            List<Point> peers = GetPeers(p1);
-            if (!peers.Contains(p2))
+            List<Point> peers = GetPeers(arc.P1);
+            foreach (Point peer in peers)
             {
-                return change;
+                if(peer.Equals(arc.P2))
+                {
+                    return false;
+                }
             }
-            for (int i = 0; i < grid.GetLength(3); i++)
+            for (int i = 0; i < grid.GetLength(2); i++)
             {
                 bool existsSatisfyingAssignment = false;
-                bool pCanBeX = grid[p1.X, p1.Y, i];
+                bool pCanBeX = grid[arc.P1.X, arc.P1.Y, i];
                 if (pCanBeX)
                 {
-                    for (int j = 0; j < grid.GetLength(3); j++)
+                    for (int j = 0; j < grid.GetLength(2); j++)
                     {
-                        bool pCanBeY = grid[p2.X, p2.Y, j];
-                        if(pCanBeY)
+                        bool pCanBeY = grid[arc.P2.X, arc.P2.Y, j];
+                        if (pCanBeY)
                         {
                             if (i != j)
                             {
@@ -143,35 +199,40 @@ namespace Sudoku
                 }
                 if (!existsSatisfyingAssignment)
                 {
-                    grid[p1.X, p1.Y, i] = false;
+                    grid[arc.P1.X, arc.P1.Y, i] = false;
                     change = true;
                 }
             }
             return change;
         }
-    }
 
-    class Point
-    {
-        private int x;
-        private int y;
-
-        public Point(int x, int y)
+        public override string ToString()
         {
-            this.x = x;
-            this.y = y;
-        }
-
-        public int X
-        {
-            get {return x;}
-            set {x = value;}
-        }
-
-        public int Y
-        {
-            get {return x;}
-            set {x = value;}
+            string gridString = "";
+            for (int x = 0; x < grid.GetLength(0); x++)
+            {
+                for (int y = 0; y < grid.GetLength(1); y++)
+                {
+                    string toAdd = "";
+                    for (int z = 0; z < grid.GetLength(2); z++)
+                    {
+                        if (grid[x, y, z])
+                        {
+                            toAdd += z.ToString();
+                        }
+                    }
+                    if (toAdd.Length == 1)
+                    {
+                        gridString += toAdd;
+                    }
+                    else
+                    {
+                        gridString += "0";
+                    }
+                }
+                gridString += "\n";
+            }
+            return gridString;
         }
     }
 }
