@@ -10,19 +10,39 @@ namespace Sudoku
     {
         public static void Main()
         {
+            string sudokuNumber = "03";
+            bool ac3Solvable = true;
+
             Grid grid = new Grid(3);
 
-            string filename = @"../../sudokus/01.txt";
+            #region File Read
+            string filename = "";
+            if (ac3Solvable)
+            {
+                filename += @"../../sudokus/ac3-solvable/" + sudokuNumber + ".txt";
+            }
+            else
+            {
+                filename += @"../../sudokus/non-ac3-solvable/" + sudokuNumber + ".txt";
+            }
             grid.ReadValuesFromFile(filename);
-            Debug.WriteLine(grid);
+            #endregion
 
             TheoreticalGrid theoreticalGrid = new TheoreticalGrid(grid);
-
             theoreticalGrid.AC3();
 
-            Debug.WriteLine(theoreticalGrid);
-
-            Debug.WriteLine(theoreticalGrid.Valid());
+            #region File Write
+            string outputFilename = "";
+            if (ac3Solvable)
+            {
+                outputFilename += @"../../sudokus/ac3-solvable/" + sudokuNumber + "-output.txt";
+            }
+            else
+            {
+                outputFilename += @"../../sudokus/non-ac3-solvable/" + sudokuNumber + "-output.txt";
+            }
+            theoreticalGrid.WriteValuesToFile(outputFilename);
+            #endregion
         }
     }
 }

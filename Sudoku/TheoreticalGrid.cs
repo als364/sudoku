@@ -297,5 +297,20 @@ namespace Sudoku
             }
             return true;
         }
+
+        public void WriteValuesToFile(string filename)
+        {
+            string values = this.ToString();
+            if (this.Valid())
+            {
+                values += "valid";
+            }
+            else
+            {
+                values += "INVALID";
+            }
+            string[] lines = values.Split(new char[] { '\n' });
+            System.IO.File.WriteAllLines(filename, lines);
+        }
     }
 }
