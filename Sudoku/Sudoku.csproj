@@ -35,7 +35,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Arc.cs" />
-    <Compile Include="Grid.cs" />
     <Compile Include="Point.cs" />
     <Compile Include="Solver.cs" />
     <Compile Include="TheoreticalGrid.cs" />

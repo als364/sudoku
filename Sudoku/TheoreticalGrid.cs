@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Diagnostics;
 
 namespace Sudoku
 {
@@ -9,10 +10,13 @@ namespace Sudoku
     {
         private HashSet<int>[,] grid;
         private int gridsize;
+        private int gridsizeSquared;
+        //private int backtracks;
 
         public TheoreticalGrid(int gridsize)
         {
             this.gridsize = gridsize;
+            this.gridsizeSquared = gridsize * gridsize;
             grid = new HashSet<int>[gridsize * gridsize, gridsize * gridsize];
             for (int i = 0; i < grid.GetLength(0); i++)
             {
@@ -23,24 +27,21 @@ namespace Sudoku
             }
         }
 
-        public TheoreticalGrid(Grid givenGrid)
+        public TheoreticalGrid(TheoreticalGrid givenTheoreticalGrid)
         {
-            gridsize = givenGrid.Gridsize;
-            grid = new HashSet<int>[givenGrid.Gridsize * givenGrid.Gridsize, givenGrid.Gridsize * givenGrid.Gridsize];
+            gridsize = givenTheoreticalGrid.gridsize;
+            gridsizeSquared = givenTheoreticalGrid.gridsizeSquared;
+            grid = new HashSet<int>[gridsizeSquared,gridsizeSquared];
             for (int i = 0; i < grid.GetLength(0); i++)
             {
                 for (int j = 0; j < grid.GetLength(1); j++)
                 {
-                    if (givenGrid.Get(i, j) != 0)
+                    HashSet<int> set = new HashSet<int>();
+                    foreach (int value in givenTheoreticalGrid.Get(i, j))
                     {
-                        HashSet<int> set = new HashSet<int>();
-                        set.Add(givenGrid.Get(i, j));
-                        grid[i, j] = set;
+                        set.Add(value);
                     }
-                    else
-                    {
-                        grid[i, j] = Utils.getAlphabet(gridsize);
-                    }
+                    grid[i, j] = set;
                 }
             }
         }
@@ -53,7 +54,26 @@ namespace Sudoku
                 return gridsize;
             }
         }
+        public int GridsizeSquared
+        {
+            get
+            {
+                return gridsizeSquared;
+            }
+        }
+        public HashSet<int>[,] Grid
+        {
+            get
+            {
+                return grid;
+            }
+        }
         #endregion
+
+        public TheoreticalGrid Clone()
+        {
+            return new TheoreticalGrid(this);
+        }
 
         public void Set(int value, int row, int column)
         {
@@ -104,122 +124,6 @@ namespace Sudoku
             return peers;
         }
 
-        public bool AC3()
-        {
-            #region Pseudocode
-            // Initial domains are made consistent with unary constraints.
-            /** 
-             *  for each x in X
-             *      D(x) := { x in D(x) | R1(x) }
-             *  // 'worklist' contains all arcs we wish to prove consistent or not.
-             *  worklist := { (x, y) | there exists a relation R2(x, y) or a relation R2(y, x) }
-             */
-            #endregion
-
-            Queue<Arc> worklist = new Queue<Arc>();
-            for (int x = 0; x < grid.GetLength(0); x++)
-            {
-                for (int y = 0; y < grid.GetLength(1); y++)
-                {
-                    Point currentPoint = new Point(x, y);
-                    List<Point> peers = GetPeers(currentPoint);
-                    foreach (Point peer in peers)
-                    {
-                        worklist.Enqueue(new Arc(currentPoint, peer));
-                    }
-                }
-            }
-
-            #region Pseudocode
-            /**
-             *  while worklist not empty
-             *      select any arc (x, y) from worklist
-             *      worklist := worklist - (x, y)
-             *      if arc-reduce (x, y) 
-             *          if D(x) is empty
-             *              return failure
-             *          else
-             *              worklist := worklist + { (z, x) | z != y and there exists a relation R2(x, z) or a relation R2(z, x) }
-             */
-            #endregion
-
-            while (worklist.Count > 0)
-            {
-                Arc currentArc = worklist.Dequeue();
-                if (ArcReduce(currentArc))
-                {
-                    List<int> domainX = grid[currentArc.P1.X, currentArc.P1.Y].ToList();
-                    if (domainX.Count == 0)
-                    {
-                        return false;
-                    }
-                    else
-                    {
-                        List<Point> peers = GetPeers(currentArc.P1);
-                        foreach (Point peer in peers)
-                        {
-                            if (!peer.Equals(currentArc.P1))
-                            {
-                                worklist.Enqueue(new Arc(peer, currentArc.P1));
-                            }
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-
-        public bool ArcReduce(Arc arc)
-        {
-            #region Pseudocode
-            /**
-             *  function arc-reduce (x, y)
-             *      bool change = false
-             *      for each vx in D(x)
-             *          find a value vy in D(y) such that vx and vy satisfy the constraint R2(x, y)
-             *          if there is no such vy 
-             *          {
-             *              D(x) := D(x) - vx
-             *              change := true
-             *          }
-             *      return change
-             */
-            #endregion
-
-            bool change = false;
-            List<Point> peers = GetPeers(arc.P1);
-            foreach (Point peer in peers)
-            {
-                if (peer.Equals(arc.P2))
-                {
-                    return false;
-                }
-            }
-            List<int> domainX = grid[arc.P1.X, arc.P1.Y].ToList();
-            for (int i = 0; i < domainX.Count; i++)
-            {
-                bool existsSatisfyingAssignment = false;
-                int vx = domainX[i];
-
-                List<int> domainY = grid[arc.P2.X, arc.P2.Y].ToList();
-                for (int j = 0; j < domainY.Count; j++)
-                {
-                    int vy = domainY[j];
-                    if (vx != vy)
-                    {
-                        existsSatisfyingAssignment = true;
-                        break;
-                    }
-                }
-                if (!existsSatisfyingAssignment)
-                {
-                    grid[arc.P1.X, arc.P1.Y].Remove(vx);
-                    change = true;
-                }
-            }
-            return change;
-        }
-
         public override string ToString()
         {
             string gridString = "";
@@ -247,31 +151,31 @@ namespace Sudoku
             return gridString;
         }
 
-        public bool Valid()
+        public bool Complete(HashSet<int>[,] gridToCheck)
         {
-            for (int i = 0; i < grid.GetLength(0); i++)
+            for (int i = 0; i < gridToCheck.GetLength(0); i++)
             {
-                for (int j = 0; j < grid.GetLength(1); j++)
+                for (int j = 0; j < gridToCheck.GetLength(1); j++)
                 {
-                    if (grid[i, j].Count == 0)
+                    if (gridToCheck[i, j].Count == 0)
                     {
                         return false;
                     }
-                    if (grid[i, j].Count == 1)
+                    if (gridToCheck[i, j].Count == 1)
                     {
                         #region Rows
-                        for (int k = 0; k < grid.GetLength(1); k++)
+                        for (int k = 0; k < gridToCheck.GetLength(1); k++)
                         {
-                            if ((k != j) && (grid[i, j] == grid[i, k]))
+                            if ((k != j) && (gridToCheck[i, j] == gridToCheck[i, k]))
                             {
                                 return false;
                             }
                         }
                         #endregion
                         #region Columns
-                        for (int k = 0; k < grid.GetLength(1); k++)
+                        for (int k = 0; k < gridToCheck.GetLength(1); k++)
                         {
-                            if ((k != i) && (grid[i, j] == grid[k, j]))
+                            if ((k != i) && (gridToCheck[i, j] == gridToCheck[k, j]))
                             {
                                 return false;
                             }
@@ -285,7 +189,7 @@ namespace Sudoku
                         {
                             for (int y = (yregion * gridsize); y < ((yregion * gridsize) + gridsize); y++)
                             {
-                                if ((x != i && y != j) && (grid[i, j] == grid[x, y]))
+                                if ((x != i && y != j) && (gridToCheck[i, j] == gridToCheck[x, y]))
                                 {
                                     return false;
                                 }
@@ -293,9 +197,84 @@ namespace Sudoku
                         }
                         #endregion
                     }
+                    else
+                    {
+                        return false;
+                    }
                 }
             }
             return true;
+        }
+
+        public bool Complete()
+        {
+            for (int i = 0; i < grid.GetLength(0); i++)
+            {
+                for (int j = 0; j < grid.GetLength(1); j++)
+                {
+                    /*if (grid[i, j].Count > 1 || grid[i, j].Count < 0)
+                    {
+                        return false;
+                    }*/
+                    if (grid[i, j].Count != 1)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        public bool Valid()
+        {
+            for (int i = 0; i < grid.GetLength(0); i++)
+            {
+                for (int j = 0; j < grid.GetLength(1); j++)
+                {
+                    if (grid[i, j].Count == 0)
+                    {
+                        return false;
+                    }
+                    if (grid[i, j].Count == 1)
+                    {
+                        List<Point> peers = GetPeers(new Point(i, j));
+                        foreach (Point peer in peers)
+                        {
+                            if (grid[i, j] == grid[peer.X, peer.Y])
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        public void ReadValuesFromFile(string filename)
+        {
+            string[] lines = System.IO.File.ReadAllLines(filename);
+
+            int row = 0;
+            foreach (string line in lines)
+            {
+                int column = 0;
+                foreach (char number in line)
+                {
+                    //chars are represented as ascii bytes, in order, 0 - 9.
+                    //If I subtract the ascii for 0 from that value, I get the numerical value of that char.
+                    if (number != '0')
+                    {
+                        Set((int)(number - '0'), row, column);
+                    }
+                    else
+                    {
+                        grid[row, column] = Utils.getAlphabet(gridsize);
+                    }
+                    column++;
+                }
+                row++;
+            }
         }
 
         public void WriteValuesToFile(string filename)
@@ -303,11 +282,19 @@ namespace Sudoku
             string values = this.ToString();
             if (this.Valid())
             {
-                values += "valid";
+                values += "valid and ";
             }
             else
             {
-                values += "INVALID";
+                values += "INVALID and ";
+            }
+            if (this.Complete())
+            {
+                values += "complete";
+            }
+            else
+            {
+                values += "INCOMPLETE";
             }
             string[] lines = values.Split(new char[] { '\n' });
             System.IO.File.WriteAllLines(filename, lines);

@@ -27,5 +27,10 @@ namespace Sudoku
             get { return y; }
             set { y = value; }
         }
+
+        public string toString()
+        {
+            return "[" + x + ", " + y + "]";
+        }
     }
 }
