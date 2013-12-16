@@ -10,17 +10,19 @@ namespace Sudoku
     {
         static int backtracks = 0;
 
-        static bool firstUnassignedCell = true;
-        //static bool minimumRemainingValues = true;
+        static bool FUC = false;
+        static bool MRV = false;
+
+        static bool LO = false;
 
         public static void Main()
         {
-            string sudokuNumber = "01";
+            string sudokuNumber = "07";
 
             bool forwardCheck = false;
             bool strictAC3 = false;
             
-            bool backtracking = false;
+            bool backtracking = true;
 
             TimeSpan duration;
 
@@ -244,44 +246,160 @@ namespace Sudoku
 
         private static Point TrackToTry(TheoreticalGrid branch)
         {
-            if (firstUnassignedCell)
+            if (FUC)
             {
-                for (int i = 0; i < branch.Grid.GetLength(0); i++)
-                {
-                    for (int j = 0; j < branch.Grid.GetLength(1); j++)
-                    {
-                        if (branch.Grid[i, j].Count > 1)
-                        {
-                            return new Point(i, j);
-                        }
-                    }
-                }
-                return null;
+                return FirstUnassignedCell(branch);
+            }
+            else if (MRV)
+            {
+                return MinimumRemainingValues(branch);
             }
             else
             {
-                int min = branch.GridsizeSquared + 1;
-                Point point = new Point(-1, -1);
-
-                for(int i = 0; i < branch.Grid.GetLength(0); i++)
-                {
-                    for(int j = 1; j < branch.Grid.GetLength(1); j++)
-                    {
-                        if ((branch.Get(i, j).Count != 1) && (branch.Get(i, j).Count < min))
-                        {
-                            point.X = i;
-                            point.Y = j;
-                            min = branch.Get(i, j).Count;
-                        }
-                    }
-                }
-                return point;
+                return MaxDegree(branch, MinimumRemainingValuesList(branch));
             }
         }
 
         private static int ValueToTry(TheoreticalGrid branch, Point point)
         {
+            if (LO)
+            {
+                return LexicographicalOrder(branch, point);
+            }
+            else
+            {
+                return LeastConstraintValue(branch, point);
+            }
+        }
+
+        #region Cell Heuristics
+        private static List<Point> MinimumRemainingValuesList(TheoreticalGrid branch)
+        {
+            int min = branch.GridsizeSquared + 1;
+            List<Point> mrvs = new List<Point>();
+            for (int i = 0; i < branch.GridsizeSquared; i++)
+                for (int j = 0; j < branch.GridsizeSquared; j++)
+                {
+                    if ((branch.Get(i, j).Count != 1) && (branch.Get(i, j).Count == min))
+                    {
+                        mrvs.Add(new Point(i, j));
+                        continue;
+                    }
+                    if ((branch.Get(i, j).Count != 1) && (branch.Get(i, j).Count < min))
+                    {
+                        mrvs.Clear();
+                        min = branch.Get(i, j).Count;
+                        mrvs.Add(new Point(i, j));
+                    }
+
+                }
+            return mrvs;
+        }
+
+        private static Point MaxDegree(TheoreticalGrid branch, List<Point> mrvs)
+        {
+            int degree = -1;
+            Point point = null;
+            foreach (Point mrvPoint in mrvs)
+            {
+                int count = 0;
+                List<Point> peers = branch.GetPeers(mrvPoint);
+                foreach (Point peer in peers)
+                {
+                    if (branch.Get(peer.X, peer.Y).Count != 1)
+                    {
+                        count++;
+                    }
+                }
+                if (count > degree)
+                {
+                    degree = count;
+                    point = mrvPoint;
+                }
+            }
+            return point;
+        }
+
+        private static Point MinimumRemainingValues(TheoreticalGrid branch)
+        {
+            int min = branch.GridsizeSquared + 1;
+            Point point = new Point(-1, -1);
+
+            for (int i = 0; i < branch.Grid.GetLength(0); i++)
+            {
+                for (int j = 1; j < branch.Grid.GetLength(1); j++)
+                {
+                    if ((branch.Get(i, j).Count != 1) && (branch.Get(i, j).Count < min))
+                    {
+                        point.X = i;
+                        point.Y = j;
+                        min = branch.Get(i, j).Count;
+                    }
+                }
+            }
+            return point;
+        }
+
+        private static Point FirstUnassignedCell(TheoreticalGrid branch)
+        {
+            for (int i = 0; i < branch.Grid.GetLength(0); i++)
+            {
+                for (int j = 0; j < branch.Grid.GetLength(1); j++)
+                {
+                    if (branch.Grid[i, j].Count > 1)
+                    {
+                        return new Point(i, j);
+                    }
+                }
+            }
+            return null;
+        }
+        #endregion
+
+        #region Variable Heuristics
+        private static int LexicographicalOrder(TheoreticalGrid branch, Point point)
+        {
             return branch.Grid[point.X, point.Y].ToArray()[0];
         }
+
+        private static int LeastConstraintValue(TheoreticalGrid branch, Point point)
+        {
+            int[] values = branch.Get(point.X, point.Y).ToArray();
+            int[] constraints = new int[branch.Get(point.X, point.Y).Count];
+
+            for (int i = 0; i < constraints.Length; i++)
+            {
+                constraints[i] = 0;
+            }
+
+            for (int i = 0; i < branch.Get(point.X, point.Y).Count; i++)
+            {
+                List<Point> peers = branch.GetPeers(point);
+                foreach (Point peer in peers)
+                {
+                    if (branch.Get(peer.X, peer.Y).Contains(values[i]))
+                    {
+                        constraints[i]++;
+                    }
+                }
+            }
+            return values[GetMinIndex(constraints)];
+        }
+
+        private static int GetMinIndex(int[] constraints)
+        {
+            int min = constraints[0];
+            int index = 0;
+            for (int i = 1; i < constraints.Length; i++)
+            {
+                if (constraints[i] < min)
+                {
+                    min = constraints[i];
+                    index = i;
+                }
+            }
+            return index;
+        }
+        #endregion
     }
 }
