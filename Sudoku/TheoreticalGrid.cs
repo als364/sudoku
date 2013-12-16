@@ -277,7 +277,7 @@ namespace Sudoku
             }
         }
 
-        public void WriteValuesToFile(string filename)
+        public void WriteValuesToFile(string filename, TimeSpan duration)
         {
             string values = this.ToString();
             if (this.Valid())
@@ -290,12 +290,13 @@ namespace Sudoku
             }
             if (this.Complete())
             {
-                values += "complete";
+                values += "complete\n";
             }
             else
             {
-                values += "INCOMPLETE";
+                values += "INCOMPLETE\n";
             }
+            values += duration;
             string[] lines = values.Split(new char[] { '\n' });
             System.IO.File.WriteAllLines(filename, lines);
         }

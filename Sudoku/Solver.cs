@@ -18,9 +18,11 @@ namespace Sudoku
             string sudokuNumber = "01";
 
             bool forwardCheck = false;
-            bool strictAC3 = true;
+            bool strictAC3 = faluse;
             
             bool backtracking = false;
+
+            TimeSpan duration;
 
             TheoreticalGrid theoreticalGrid = new TheoreticalGrid(3);
 
@@ -28,6 +30,8 @@ namespace Sudoku
             string filename = @"../../sudokus/" + sudokuNumber + ".txt";
             theoreticalGrid.ReadValuesFromFile(filename);
             #endregion
+
+            DateTime now = DateTime.Now; 
 
             if (forwardCheck)
             {
@@ -48,14 +52,16 @@ namespace Sudoku
                     }
                     else
                     {
+                        
                         theoreticalGrid = backtracked;
                     }
                 }
             }
 
+            duration = DateTime.Now - now;
             #region File Write
             string outputFilename = @"../../sudokus/" + sudokuNumber + "-output.txt";
-            theoreticalGrid.WriteValuesToFile(outputFilename);
+            theoreticalGrid.WriteValuesToFile(outputFilename, duration);
             #endregion
         }
 
