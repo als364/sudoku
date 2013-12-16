@@ -18,7 +18,7 @@ namespace Sudoku
             string sudokuNumber = "01";
 
             bool forwardCheck = false;
-            bool strictAC3 = faluse;
+            bool strictAC3 = false;
             
             bool backtracking = false;
 
