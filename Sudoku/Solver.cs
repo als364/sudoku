@@ -8,64 +8,568 @@ namespace Sudoku
 {
     class Solver
     {
-        static int backtracks = 0;
+        //static bool FUC = false;
+        //static bool MRV = false;
 
-        static bool FUC = false;
-        static bool MRV = false;
+        //static bool LO = false;
 
-        static bool LO = false;
+        enum Strategy { BF, BF_LCV, MRV_BF, MD_MRV_BF, MRV_LCV, MD_MRV_LCV };
 
         public static void Main()
         {
-            string sudokuNumber = "07";
+            string[] sudokuNames = { "easy-1", "easy-2", "easy-3", "medium-1", "medium-2", "medium-3", "hard-1", "hard-2", "hard-3", "evil-1", "evil-2", "evil-3" };
+            string[] times = new string[9];
 
-            bool forwardCheck = false;
-            bool strictAC3 = false;
-            
-            bool backtracking = true;
+            Strategy strategy = Strategy.MD_MRV_LCV;
+            bool constraintPropagation = false;
 
-            TimeSpan duration;
-
-            TheoreticalGrid theoreticalGrid = new TheoreticalGrid(3);
-
-            #region File Read
-            string filename = @"../../sudokus/" + sudokuNumber + ".txt";
-            theoreticalGrid.ReadValuesFromFile(filename);
-            #endregion
-
-            DateTime now = DateTime.Now; 
-
-            if (forwardCheck)
+            for (int i = 0; i < sudokuNames.Length; i++)
             {
-                ForwardCheck(theoreticalGrid);
-            }
-            if (strictAC3)
-            {
-                AC3(theoreticalGrid);
-            }
-            if (backtracking)
-            {
-                while (!theoreticalGrid.Complete())
+                TimeSpan duration;
+
+                TheoreticalGrid theoreticalGrid = new TheoreticalGrid(3);
+
+                #region File Read
+                string filename = @"../../sudokus/" + sudokuNames[i] + ".txt";
+                theoreticalGrid.ReadValuesFromFile(filename);
+                #endregion
+
+                Debug.WriteLine(filename);
+
+                DateTime now = DateTime.Now;
+
+                if (constraintPropagation)
                 {
-                    TheoreticalGrid backtracked = BacktrackingSearch(theoreticalGrid);
-                    if (backtracked == null)
+                    switch (strategy)
                     {
-                        break;
-                    }
-                    else
-                    {
-                        
-                        theoreticalGrid = backtracked;
+                        case Strategy.BF_LCV:
+                            theoreticalGrid = BruteForce_LeastConstrainedValue_AC3(theoreticalGrid);
+                            break;
+                        case Strategy.MRV_BF:
+                            theoreticalGrid = MinimumRemainingValue_BruteForce_AC3(theoreticalGrid);
+                            break;
+                        case Strategy.MRV_LCV:
+                            theoreticalGrid = MinimumRemainingValue_BruteForce_AC3(theoreticalGrid);
+                            break;
+                        case Strategy.MD_MRV_BF:
+                            theoreticalGrid = MaxDegree_MinimumRemainingValue_BruteForce_AC3(theoreticalGrid);
+                            break;
+                        case Strategy.MD_MRV_LCV:
+                            theoreticalGrid = MaxDegree_MinimumRemainingValue_LeastConstrainingValue_AC3(theoreticalGrid);
+                            break;
+                        default:
+                            theoreticalGrid = BruteForce_AC3(theoreticalGrid);
+                            break;
                     }
                 }
+                else
+                {
+                    switch (strategy)
+                    {
+                        case Strategy.BF_LCV:
+                            theoreticalGrid = BruteForce_LeastConstrainedValue(theoreticalGrid);
+                            break;
+                        case Strategy.MRV_BF:
+                            theoreticalGrid = MinimumRemainingValue_BruteForce(theoreticalGrid);
+                            break;
+                        case Strategy.MRV_LCV:
+                            theoreticalGrid = MinimumRemainingValue_BruteForce(theoreticalGrid);
+                            break;
+                        case Strategy.MD_MRV_BF:
+                            theoreticalGrid = MaxDegree_MinimumRemainingValue_BruteForce(theoreticalGrid);
+                            break;
+                        case Strategy.MD_MRV_LCV:
+                            theoreticalGrid = MaxDegree_MinimumRemainingValue_LeastConstrainingValue(theoreticalGrid);
+                            break;
+                        default:
+                            theoreticalGrid = BruteForce(theoreticalGrid);
+                            break;
+                    }
+                }
+
+                duration = DateTime.Now - now;
+
+                times[i] = duration.ToString();
+
+                #region File Write
+                string outputFilename = @"../../sudokus/" + sudokuNames[i] + "-output.txt";
+                theoreticalGrid.WriteValuesToFile(outputFilename, duration);
+                #endregion
+            }
+            System.IO.File.WriteAllLines(@"../../times.txt", times);
+        }
+
+        #region No Constraint Propagation
+        public static TheoreticalGrid BruteForce(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!branch.Valid())
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
             }
 
-            duration = DateTime.Now - now;
-            #region File Write
-            string outputFilename = @"../../sudokus/" + sudokuNumber + "-output.txt";
-            theoreticalGrid.WriteValuesToFile(outputFilename, duration);
-            #endregion
+            Point point = FirstUnassignedCell(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = BruteForce(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!branch.Valid())
+                {
+                    return null;
+                }
+            }
+            return null;
         }
+
+        public static TheoreticalGrid BruteForce_LeastConstrainedValue(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!branch.Valid())
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = FirstUnassignedCell(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LeastConstrainedValue(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = BruteForce_LeastConstrainedValue(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!branch.Valid())
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MinimumRemainingValue_BruteForce(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!branch.Valid())
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MinimumRemainingValues(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MinimumRemainingValue_BruteForce(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!branch.Valid())
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MinimumRemainingValue_LeastConstrainedValue(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!branch.Valid())
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MinimumRemainingValues(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LeastConstrainedValue(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MinimumRemainingValue_LeastConstrainedValue(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!branch.Valid())
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MaxDegree_MinimumRemainingValue_BruteForce(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!branch.Valid())
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MaxDegree(branch, MinimumRemainingValuesList(branch));
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MaxDegree_MinimumRemainingValue_BruteForce(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!branch.Valid())
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MaxDegree_MinimumRemainingValue_LeastConstrainingValue(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!branch.Valid())
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MaxDegree(branch, MinimumRemainingValuesList(branch));
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MaxDegree_MinimumRemainingValue_LeastConstrainingValue(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!branch.Valid())
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+        #endregion
+
+        #region Constraint Propagation
+        public static TheoreticalGrid BruteForce_AC3(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!AC3(branch))
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = FirstUnassignedCell(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = BruteForce_AC3(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!AC3(branch))
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid BruteForce_LeastConstrainedValue_AC3(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!AC3(branch))
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = FirstUnassignedCell(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LeastConstrainedValue(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = BruteForce_LeastConstrainedValue_AC3(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!AC3(branch))
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MinimumRemainingValue_BruteForce_AC3(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!AC3(branch))
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MinimumRemainingValues(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MinimumRemainingValue_BruteForce(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!AC3(branch))
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MinimumRemainingValue_LeastConstrainedValue_AC3(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!AC3(branch))
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MinimumRemainingValues(branch);
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LeastConstrainedValue(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MinimumRemainingValue_LeastConstrainedValue_AC3(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!AC3(branch))
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MaxDegree_MinimumRemainingValue_BruteForce_AC3(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!AC3(branch))
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MaxDegree(branch, MinimumRemainingValuesList(branch));
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MaxDegree_MinimumRemainingValue_BruteForce_AC3(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!AC3(branch))
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        public static TheoreticalGrid MaxDegree_MinimumRemainingValue_LeastConstrainingValue_AC3(TheoreticalGrid branch)
+        {
+            TheoreticalGrid ret;
+
+            if (!AC3(branch))
+            {
+                return null;
+            }
+            if (branch.Complete())
+            {
+                return branch;
+            }
+
+            Point point = MaxDegree(branch, MinimumRemainingValuesList(branch));
+
+            while (branch.Grid[point.X, point.Y].Count > 0)
+            {
+                int value = LexicographicalOrder(branch, point);
+
+                TheoreticalGrid clone = branch.Clone();
+                clone.Set(value, point.X, point.Y);
+
+                ret = MaxDegree_MinimumRemainingValue_LeastConstrainingValue_AC3(clone);
+
+                if (ret != null)
+                {
+                    return ret;
+                }
+
+                branch.Remove(value, point.X, point.Y);
+
+                if (!AC3(branch))
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+        #endregion
 
         public static void ForwardCheck(TheoreticalGrid grid)
         {
@@ -202,76 +706,6 @@ namespace Sudoku
             return change;
         }
 
-        public static TheoreticalGrid BacktrackingSearch(TheoreticalGrid branch)
-        {
-            TheoreticalGrid ret;
-
-            if (!AC3(branch))
-            {
-                return null;
-            }
-            if (branch.Complete())
-            {
-                return branch;
-            }
-            else
-            {
-                Point point = TrackToTry(branch);
-
-                while (branch.Grid[point.X, point.Y].Count > 1)
-                {
-                    int value = ValueToTry(branch, point);
-
-                    TheoreticalGrid clone = (TheoreticalGrid)branch.Clone();
-                    clone.Set(value, point.X, point.Y);
-
-                    ret = BacktrackingSearch(clone);
-
-                    if (ret != null)
-                    {
-                        return ret;
-                    }
-
-                    backtracks++;
-                    branch.Remove(value, point.X, point.Y);
-
-                    if (!AC3(branch))
-                    {
-                        return null;
-                    }
-                }
-                return null;
-            }
-        }
-
-        private static Point TrackToTry(TheoreticalGrid branch)
-        {
-            if (FUC)
-            {
-                return FirstUnassignedCell(branch);
-            }
-            else if (MRV)
-            {
-                return MinimumRemainingValues(branch);
-            }
-            else
-            {
-                return MaxDegree(branch, MinimumRemainingValuesList(branch));
-            }
-        }
-
-        private static int ValueToTry(TheoreticalGrid branch, Point point)
-        {
-            if (LO)
-            {
-                return LexicographicalOrder(branch, point);
-            }
-            else
-            {
-                return LeastConstraintValue(branch, point);
-            }
-        }
-
         #region Cell Heuristics
         private static List<Point> MinimumRemainingValuesList(TheoreticalGrid branch)
         {
@@ -325,9 +759,9 @@ namespace Sudoku
             int min = branch.GridsizeSquared + 1;
             Point point = new Point(-1, -1);
 
-            for (int i = 0; i < branch.Grid.GetLength(0); i++)
+            for (int i = 0; i < branch.GridsizeSquared; i++)
             {
-                for (int j = 1; j < branch.Grid.GetLength(1); j++)
+                for (int j = 0; j < branch.GridsizeSquared; j++)
                 {
                     if ((branch.Get(i, j).Count != 1) && (branch.Get(i, j).Count < min))
                     {
@@ -362,7 +796,7 @@ namespace Sudoku
             return branch.Grid[point.X, point.Y].ToArray()[0];
         }
 
-        private static int LeastConstraintValue(TheoreticalGrid branch, Point point)
+        private static int LeastConstrainedValue(TheoreticalGrid branch, Point point)
         {
             int[] values = branch.Get(point.X, point.Y).ToArray();
             int[] constraints = new int[branch.Get(point.X, point.Y).Count];

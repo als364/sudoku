@@ -237,12 +237,17 @@ namespace Sudoku
                     }
                     if (grid[i, j].Count == 1)
                     {
+                        int value = grid[i, j].ToArray()[0];
                         List<Point> peers = GetPeers(new Point(i, j));
                         foreach (Point peer in peers)
                         {
-                            if (grid[i, j] == grid[peer.X, peer.Y])
+                            if (grid[peer.X, peer.Y].Count == 1)
                             {
-                                return false;
+                                int peerValue = grid[peer.X, peer.Y].ToArray()[0];
+                                if (value == peerValue)
+                                {
+                                    return false;
+                                }
                             }
                         }
                     }
