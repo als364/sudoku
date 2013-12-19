@@ -17,8 +17,8 @@ namespace Sudoku
 
         public static void Main()
         {
-            string[] sudokuNames = { "easy-1", "easy-2", "easy-3", "medium-1", "medium-2", "medium-3", "hard-1", "hard-2", "hard-3", "evil-1", "evil-2", "evil-3" };
-            string[] times = new string[9];
+            string[] sudokuNames = { "medium-1"};//, "medium-2", "medium-3" }; //{ "easy-1", "easy-2", "easy-3", "medium-1", "medium-2", "medium-3", "hard-1", "hard-2", "hard-3", "evil-1", "evil-2", "evil-3" };
+            string[] times = new string[3];
 
             Strategy strategy = Strategy.MD_MRV_LCV;
             bool constraintPropagation = false;
